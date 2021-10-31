@@ -14,4 +14,4 @@ COPY --from=build /go/bin/389DS-exporter /usr/local/bin/389DS-exporter
 
 EXPOSE 9313
 
-CMD ["/usr/local/bin/389DS-exporter"]
+ENTRYPOINT ["/usr/local/bin/389DS-exporter"]
