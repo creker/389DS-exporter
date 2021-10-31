@@ -3,14 +3,14 @@
 package main
 
 import (
+	"flag"
 	"net/http"
 	_ "net/http/pprof"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
-	"gopkg.in/alecthomas/kingpin.v2"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -18,9 +18,11 @@ const (
 )
 
 var (
-	port     int
-	server   string
-	_version = "1.5"
+	port         int
+	server       string
+	bindDn       string
+	bindPassword string
+	_version     = "1.5"
 )
 
 // DSData stores metrics from 389DS
@@ -325,7 +327,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 // Collect reads stats from LDAP connection object into Prometheus objects
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
-	data := getStats(server, port)
+	data := getStats(server, port, bindDn, bindPassword)
 
 	ch <- prometheus.MustNewConstMetric(e.anonymousbinds, prometheus.CounterValue, data.anonymousbinds)
 	ch <- prometheus.MustNewConstMetric(e.unauthbinds, prometheus.CounterValue, data.unauthbinds)
@@ -359,20 +361,20 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
 func main() {
 	var (
-		listenAddress  = kingpin.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9313").String()
-		metricsPath    = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
-		ldapServer     = kingpin.Flag("ldap.ServerFQDN", "FQDN of the target LDAP server").Default("localhost").String()
-		ldapServerPort = kingpin.Flag("ldap.ServerPort", "Port to connect on LDAP server").Default("389").Int()
+		listenAddress    = flag.String("web.listen-address", ":9313", "Address to listen on for web interface and telemetry.")
+		metricsPath      = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
+		ldapServer       = flag.String("ldap.ServerFQDN", "localhost", "FQDN of the target LDAP server")
+		ldapBindDN       = flag.String("ldap.BindDN", "", "DN to bind to the target LDAP server")
+		ldapBindPassword = flag.String("ldap.BindPassword", "", "Password to bind to the target LDAP server")
+		ldapServerPort   = flag.Int("ldap.ServerPort", 389, "Port to connect on LDAP server")
 	)
-
-	log.AddFlags(kingpin.CommandLine)
-	kingpin.Version(version.Print("ds_exporter"))
-	kingpin.HelpFlag.Short('h')
-	kingpin.Parse()
+	flag.Parse()
 
 	port = *ldapServerPort
 	server = *ldapServer
 	version.Version = _version
+	bindDn = *ldapBindDN
+	bindPassword = *ldapBindPassword
 
 	log.Infoln("Starting ds_exporter", version.Info())
 	log.Infoln("Build context", version.BuildContext())

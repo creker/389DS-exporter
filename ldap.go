@@ -6,16 +6,22 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/prometheus/common/log"
-	ldap "gopkg.in/ldap.v3"
+	ldap "github.com/go-ldap/ldap/v3"
+	log "github.com/sirupsen/logrus"
 )
 
-func getStats(server string, port int) DSData {
+func getStats(server string, port int, binddn, password string) DSData {
 	conn, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", server, port))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer conn.Close()
+
+	if binddn != "" {
+		if err := conn.Bind(binddn, password); err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	searchRequest := ldap.NewSearchRequest(
 		"cn=snmp, cn=monitor",
