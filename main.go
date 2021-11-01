@@ -18,8 +18,8 @@ const (
 )
 
 var (
-	port         int
 	server       string
+	startTLS     bool
 	bindDn       string
 	bindPassword string
 	_version     = "1.5"
@@ -327,7 +327,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 // Collect reads stats from LDAP connection object into Prometheus objects
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 
-	data := getStats(server, port, bindDn, bindPassword)
+	data := getStats(server, startTLS, bindDn, bindPassword)
 
 	ch <- prometheus.MustNewConstMetric(e.anonymousbinds, prometheus.CounterValue, data.anonymousbinds)
 	ch <- prometheus.MustNewConstMetric(e.unauthbinds, prometheus.CounterValue, data.unauthbinds)
@@ -363,22 +363,21 @@ func main() {
 	var (
 		listenAddress    = flag.String("web.listen-address", ":9313", "Address to listen on for web interface and telemetry.")
 		metricsPath      = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-		ldapServer       = flag.String("ldap.ServerFQDN", "localhost", "FQDN of the target LDAP server")
+		ldapServer       = flag.String("ldap.ServerURL", "ldap://localhost", "URL of the target LDAP server")
+		ldapStartTLS     = flag.Bool("ldap.StartTLS", true, "Use StartTLS")
 		ldapBindDN       = flag.String("ldap.BindDN", "", "DN to bind to the target LDAP server")
 		ldapBindPassword = flag.String("ldap.BindPassword", "", "Password to bind to the target LDAP server")
-		ldapServerPort   = flag.Int("ldap.ServerPort", 389, "Port to connect on LDAP server")
 	)
 	flag.Parse()
 
-	port = *ldapServerPort
 	server = *ldapServer
+	startTLS = *ldapStartTLS
 	version.Version = _version
 	bindDn = *ldapBindDN
 	bindPassword = *ldapBindPassword
 
 	log.Infoln("Starting ds_exporter", version.Info())
-	log.Infoln("Build context", version.BuildContext())
-	log.Infoln("Connecting to LDAP Server: ", *ldapServer, " on port: ", port)
+	log.Infoln("Connecting to LDAP Server: ", *ldapServer)
 
 	prometheus.MustRegister(NewExporter())
 

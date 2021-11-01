@@ -3,19 +3,31 @@
 package main
 
 import (
-	"fmt"
+	"crypto/tls"
+	"net/url"
 	"strconv"
 
-	ldap "github.com/go-ldap/ldap/v3"
+	"github.com/go-ldap/ldap/v3"
 	log "github.com/sirupsen/logrus"
 )
 
-func getStats(server string, port int, binddn, password string) DSData {
-	conn, err := ldap.Dial("tcp", fmt.Sprintf("%s:%d", server, port))
+func getStats(server string, startTLS bool, binddn, password string) DSData {
+	u, err := url.ParseRequestURI(server)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	conn, err := ldap.DialURL(server)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer conn.Close()
+
+	if startTLS {
+		if err := conn.StartTLS(&tls.Config{ServerName: u.Hostname()}); err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	if binddn != "" {
 		if err := conn.Bind(binddn, password); err != nil {
