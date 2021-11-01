@@ -6,6 +6,8 @@ import (
 	"flag"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
+	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -368,14 +370,32 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(e.cachehits, prometheus.CounterValue, data.cachehits)
 }
 
+func LookupEnvOrString(key string, defaultVal string) string {
+	if val, ok := os.LookupEnv(key); ok {
+		return val
+	}
+	return defaultVal
+}
+
+func LookupEnvOrBool(key string, defaultVal bool) bool {
+	if val, ok := os.LookupEnv(key); ok {
+		v, err := strconv.ParseBool(val)
+		if err != nil {
+			log.Fatalf("LookupEnvOrBool[%s]: %v", key, err)
+		}
+		return v
+	}
+	return defaultVal
+}
+
 func main() {
 	var (
-		listenAddress    = flag.String("web.listen-address", ":9313", "Address to listen on for web interface and telemetry.")
-		metricsPath      = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-		ldapServer       = flag.String("ldap.ServerURL", "ldap://localhost", "URL of the target LDAP server")
-		ldapStartTLS     = flag.Bool("ldap.StartTLS", true, "Use StartTLS")
-		ldapBindDN       = flag.String("ldap.BindDN", "", "DN to bind to the target LDAP server")
-		ldapBindPassword = flag.String("ldap.BindPassword", "", "Password to bind to the target LDAP server")
+		listenAddress    = flag.String("web.listen-address", LookupEnvOrString("DS_LISTEN_ADDRESS", ":9313"), "Address to listen on for web interface and telemetry (DS_LISTEN_ADDRESS)")
+		metricsPath      = flag.String("web.telemetry-path", LookupEnvOrString("DS_TELEMETRY_PATH", "/metrics"), "Path under which to expose metrics (DS_TELEMETRY_PATH)")
+		ldapServer       = flag.String("ldap.ServerURL", LookupEnvOrString("DS_SERVER_URL", "ldap://localhost"), "URL of the target LDAP server (DS_SERVER_URL)")
+		ldapStartTLS     = flag.Bool("ldap.StartTLS", LookupEnvOrBool("DS_STARTTLS", true), "Use StartTLS (DS_STARTTLS)")
+		ldapBindDN       = flag.String("ldap.BindDN", LookupEnvOrString("DS_BINDDN", ""), "DN to bind to the target LDAP server (DS_BINDDN)")
+		ldapBindPassword = flag.String("ldap.BindPassword", LookupEnvOrString("DS_BINDPASSWORD", ""), "Password to bind to the target LDAP server (DS_BINDPASSWORD)")
 	)
 	flag.Parse()
 
