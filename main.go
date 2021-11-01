@@ -326,8 +326,10 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect reads stats from LDAP connection object into Prometheus objects
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
-
-	data := getStats(server, startTLS, bindDn, bindPassword)
+	data, err := getStats(server, startTLS, bindDn, bindPassword)
+	if err != nil {
+		log.WithError(err).Error("scrape failed")
+	}
 
 	ch <- prometheus.MustNewConstMetric(e.anonymousbinds, prometheus.CounterValue, data.anonymousbinds)
 	ch <- prometheus.MustNewConstMetric(e.unauthbinds, prometheus.CounterValue, data.unauthbinds)
