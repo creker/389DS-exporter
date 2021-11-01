@@ -319,6 +319,7 @@ func getStats(server string, startTLS bool, binddn, password string) (DSData, er
 	}
 
 	return DSData{
+		up:                         1,
 		anonymousbinds:             anonymousbinds64,
 		unauthbinds:                unauthbinds64,
 		simpleauthbinds:            simpleauthbinds64,

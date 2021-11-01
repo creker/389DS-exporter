@@ -9,7 +9,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/version"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -22,11 +21,11 @@ var (
 	startTLS     bool
 	bindDn       string
 	bindPassword string
-	_version     = "1.5"
 )
 
 // DSData stores metrics from 389DS
 type DSData struct {
+	up                         int
 	anonymousbinds             float64
 	unauthbinds                float64
 	simpleauthbinds            float64
@@ -59,6 +58,7 @@ type DSData struct {
 
 // Exporter stores metrics from 389DS
 type Exporter struct {
+	up                         *prometheus.Desc
 	anonymousbinds             *prometheus.Desc
 	unauthbinds                *prometheus.Desc
 	simpleauthbinds            *prometheus.Desc
@@ -92,6 +92,12 @@ type Exporter struct {
 // NewExporter returns an initialized exporter
 func NewExporter() *Exporter {
 	return &Exporter{
+		up: prometheus.NewDesc(
+			prometheus.BuildFQName(namespace, "", "up"),
+			"Whether the last scrape was able to connect to the server",
+			nil,
+			nil,
+		),
 
 		anonymousbinds: prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "", "anonymousbinds"),
@@ -293,7 +299,7 @@ func NewExporter() *Exporter {
 
 // Describe soyle boyle
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
-
+	ch <- e.up
 	ch <- e.anonymousbinds
 	ch <- e.unauthbinds
 	ch <- e.simpleauthbinds
@@ -327,6 +333,7 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 // Collect reads stats from LDAP connection object into Prometheus objects
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	data, err := getStats(server, startTLS, bindDn, bindPassword)
+	ch <- prometheus.MustNewConstMetric(e.up, prometheus.GaugeValue, float64(data.up))
 	if err != nil {
 		log.WithError(err).Error("scrape failed")
 	}
@@ -374,11 +381,9 @@ func main() {
 
 	server = *ldapServer
 	startTLS = *ldapStartTLS
-	version.Version = _version
 	bindDn = *ldapBindDN
 	bindPassword = *ldapBindPassword
 
-	log.Infoln("Starting ds_exporter", version.Info())
 	log.Infoln("Connecting to LDAP Server: ", *ldapServer)
 
 	prometheus.MustRegister(NewExporter())
